@@ -1,5 +1,13 @@
 # Differential-Drive-Mobile-Robot
 
-Pemrograman Sistem Mekatronik
+Diki Hermawan - 4122600037
+****
+Mata Kuliah : Pemrograman Sistem Mekatronik
+****
+Dosen Pengampu : Adytia Darmawan, S. S.T., M.T.
+****
+Semester 5 - Teknik Mekatronika
 
-Teknik Mekatronika PENS 2024
+Politeknik Elektronika Negeri Surabaya
+
+2024
