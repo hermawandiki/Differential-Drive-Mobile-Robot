@@ -17,7 +17,15 @@
 #define WHEEL_RADIUS (WHEEL_DIAMETER / 2.0)
 #define WHEELBASE 0.18 // in meters
 
+// STATE MODE
+#define TELEOPERATION   1
+#define AUTONOMOUS      2
+#define WALL_FOLLOWING  3
+#define POINT_TO_POINT  4
+
 char buffer[100];
+uint8_t state = 0;
+bool isRun = false;
 
 volatile int encoderL, encoderR;
 int posReadL, posReadR;
@@ -43,9 +51,7 @@ float dt = 0.08;  // 80ms
 int dtDelay = dt * 1000;
 float vy, omega;
 
-TaskHandle_t HandleSpeedL = NULL;
-TaskHandle_t HandleSpeedR = NULL;
-TaskHandle_t HandleRobotRun = NULL;
+TaskHandle_t HandleMotorControl = NULL;
 TaskHandle_t HandleMainProgram = NULL;
 
 void setup() {
@@ -64,13 +70,11 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(ENCA_L), HandleENC_L, RISING);
   attachInterrupt(digitalPinToInterrupt(ENCA_R), HandleENC_R, RISING);
 
-  xTaskCreatePinnedToCore(TaskSpeedL, "Baca Speed L", 1024, NULL, 1, &HandleSpeedL, 0);
-  xTaskCreatePinnedToCore(TaskSpeedR, "Baca Speed R", 1024, NULL, 1, &HandleSpeedR, 0);
-  xTaskCreatePinnedToCore(TaskRobotRun, "Run Kinematic", 1024, NULL, 1, &HandleRobotRun, 0);
-  xTaskCreatePinnedToCore(TaskMainProgram, "Control", 1024, NULL, 1, &HandleMainProgram, 0);
+  xTaskCreatePinnedToCore(TaskMotorControl, "Kinematik & PID", 1024, NULL, 1, &HandleMotorControl, 0);
+  xTaskCreatePinnedToCore(TaskMainProgram, "Main Program", 1024, NULL, 1, &HandleMainProgram, 0);
 }
 
-void loop(){
+void loop() {
   //
 }
 //
@@ -106,7 +110,7 @@ void driveMotor(int pwm1, int pwm2) {
   analogWrite(PWM_R, pwm2);
 }
 //
-void kinematic(float vy, float omega){
+void kinematic(float vy, float omega) {
   // Konversi vy (mm/s) menjadi m/s
   vy = vy / 1000.0;
   // Konversi w (deg/s) menjadi rad/s
@@ -126,31 +130,7 @@ void kinematic(float vy, float omega){
   driveMotor(pwmL, pwmR);
 }
 //
-void TaskSpeedL(void *pvParameters){
-  for(;;){
-    noInterrupts();
-    posReadL = encoderL;
-    interrupts();
-    deltaPosL = posReadL - prevPosReadL;
-    prevPosReadL = posReadL;
-    speedActualL = deltaPosL / dt / 320;
-    vTaskDelay(dtDelay/portTICK_PERIOD_MS);
-  }
-}
-//
-void TaskSpeedR(void *pvParameters){
-  for(;;){
-    noInterrupts();
-    posReadR = encoderR;
-    interrupts();
-    deltaPosR = posReadR - prevPosReadR;
-    prevPosReadR = posReadR;
-    speedActualR = deltaPosR / dt / 320;
-    vTaskDelay(dtDelay/portTICK_PERIOD_MS);
-  }
-}
-//
-int PID_L(float setpoint){
+int PID_L(float setpoint) {
   int out;
   // PID
   errorL = setpoint - speedActualL;
@@ -165,7 +145,7 @@ int PID_L(float setpoint){
   return out;
 }
 //
-int PID_R(float setpoint){
+int PID_R(float setpoint) {
   int out;
   // PID
   errorR = setpoint - speedActualR;
@@ -180,34 +160,80 @@ int PID_R(float setpoint){
   return out;
 }
 //
-void TaskRobotRun(void *pvParameters){
-  for(;;){
+void TaskMotorControl(void *pvParameters) {
+  for (;;) {
+    noInterrupts();
+    posReadL = encoderL;
+    posReadR = encoderR;
     kinematic(vy, omega);
-    vTaskDelay(dtDelay/portTICK_PERIOD_MS);
+    interrupts();
+    deltaPosL = posReadL - prevPosReadL;
+    deltaPosR = posReadR - prevPosReadR;
+    prevPosReadL = posReadL;
+    prevPosReadR = posReadR;
+    speedActualL = deltaPosL / dt / 320;
+    speedActualR = deltaPosR / dt / 320;
+    kinematic(vy, omega);
+    vTaskDelay(dtDelay / portTICK_PERIOD_MS);
   }
 }
 //
-void TaskMainProgram(void *pvParameters){
-  for(;;){
+void TaskMainProgram(void *pvParameters) {
+  float _vy, _omega;
+  for (;;) {
     if (Serial.available() > 0) {
-     String data = Serial.readStringUntil('\n');
-     
-     if (data.startsWith("I")) {
-      vy = data.substring(1).toInt();
-     } else if (data.startsWith("K")) {
-        vy = -(data.substring(1).toInt());
-     } else if (data.startsWith("J")) {
-        omega = -(data.substring(1).toInt());
-     } else if (data.startsWith("L")) {
-        omega = data.substring(1).toInt();
-     } else {
-        
-     }
+      String data = Serial.readStringUntil('\n');
+
+      if (data == "T")               { state = TELEOPERATION;  isRun = false; }
+      else if (data == "A")          { state = AUTONOMOUS;     isRun = false; }
+      else if (data == "W")          { state = WALL_FOLLOWING; isRun = false; }
+      else if (data == "P")          { state = POINT_TO_POINT; isRun = false; }
+      else if (data == "M")          { isRun = true;                          }
+      else if (data == "N")          { isRun = false;                         }
+      else if (data.startsWith("I")) { _vy = data.substring(1).toInt();       }
+      else if (data.startsWith("K")) { _vy = -(data.substring(1).toInt());    }
+      else if (data.startsWith("J")) { _omega = -(data.substring(1).toInt()); }
+      else if (data.startsWith("L")) { _omega = data.substring(1).toInt();    }
+      else {
+        _vy     = 0;
+        _omega  = 0;
+        vy      = 0;
+        omega   = 0;
+      }
     }
-      
-    Serial.print(speedActualL);
-    Serial.print("  ");
-    Serial.println(speedActualR);
-    vTaskDelay(dtDelay/portTICK_PERIOD_MS);
+
+    switch (state) {
+      case TELEOPERATION :
+        vy    = _vy;
+        omega = _omega;
+        break;
+      case AUTONOMOUS :
+        if(isRun) autonomous();
+        else break;
+        break;
+      case WALL_FOLLOWING :
+        break;
+      case POINT_TO_POINT :
+        break;
+      default :
+        break;
+    }
+
+//    Serial.print(speedActualL);
+//    Serial.print("  ");
+//    Serial.println(speedActualR);
+//    Serial.print(state);
+//    Serial.print(" ");
+//    Serial.println(isRun);
+    vTaskDelay(dtDelay / portTICK_PERIOD_MS);
   }
+}
+//
+void autonomous(){
+  vy    = 100;
+  omega = 0;
+  delay(10000);
+  vy    = 0;
+  omega = 0;
+  isRun = false;
 }
