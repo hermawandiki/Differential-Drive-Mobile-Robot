@@ -29,13 +29,13 @@ float speedSetpointL, speedSetpointR;
 float errorL, prevErrorL;
 float integralL, derivativeL;
 float controlL, velocityL;
-float KpL = 20;
+float KpL = 10;
 float KiL = 0;
 float KdL = 0;
 float errorR, prevErrorR;
 float integralR, derivativeR;
 float controlR, velocityR;
-float KpR = 20;
+float KpR = 10;
 float KiR = 0;
 float KdR = 0;
 
@@ -64,10 +64,10 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(ENCA_L), HandleENC_L, RISING);
   attachInterrupt(digitalPinToInterrupt(ENCA_R), HandleENC_R, RISING);
 
-  xTaskCreatePinnedToCore(TaskSpeedL, "Baca Speed L", 4096, NULL, 1, &HandleSpeedL, 0);
-  xTaskCreatePinnedToCore(TaskSpeedR, "Baca Speed R", 4096, NULL, 1, &HandleSpeedR, 0);
-  xTaskCreatePinnedToCore(TaskRobotRun, "Run Kinematic", 4096, NULL, 1, &HandleRobotRun, 0);
-  xTaskCreatePinnedToCore(TaskMainProgram, "Control", 4096, NULL, 1, &HandleMainProgram, 0);
+  xTaskCreatePinnedToCore(TaskSpeedL, "Baca Speed L", 1024, NULL, 1, &HandleSpeedL, 0);
+  xTaskCreatePinnedToCore(TaskSpeedR, "Baca Speed R", 1024, NULL, 1, &HandleSpeedR, 0);
+  xTaskCreatePinnedToCore(TaskRobotRun, "Run Kinematic", 1024, NULL, 1, &HandleRobotRun, 0);
+  xTaskCreatePinnedToCore(TaskMainProgram, "Control", 1024, NULL, 1, &HandleMainProgram, 0);
 }
 
 void loop(){
@@ -189,9 +189,25 @@ void TaskRobotRun(void *pvParameters){
 //
 void TaskMainProgram(void *pvParameters){
   for(;;){
+    if (Serial.available() > 0) {
+     String data = Serial.readStringUntil('\n');
+     
+     if (data.startsWith("I")) {
+      vy = data.substring(1).toInt();
+     } else if (data.startsWith("K")) {
+        vy = -(data.substring(1).toInt());
+     } else if (data.startsWith("J")) {
+        omega = -(data.substring(1).toInt());
+     } else if (data.startsWith("L")) {
+        omega = data.substring(1).toInt();
+     } else {
+        
+     }
+    }
+      
     Serial.print(speedActualL);
     Serial.print("  ");
     Serial.println(speedActualR);
-  vTaskDelay(1/portTICK_PERIOD_MS);
+    vTaskDelay(dtDelay/portTICK_PERIOD_MS);
   }
 }
