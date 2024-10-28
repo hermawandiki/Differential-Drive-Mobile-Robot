@@ -15,13 +15,15 @@ from tkinter import Tk, Canvas, Entry, Text, Button, PhotoImage
 
 
 OUTPUT_PATH = Path(__file__).parent
-ASSETS_PATH = OUTPUT_PATH / Path(r"/home/pi/Downloads/GUI DDMR/02/build/assets/frame0")
+# ASSETS_PATH = OUTPUT_PATH / Path(r"/home/pi/Downloads/GUI DDMR/02/build/assets/frame0")
+ASSETS_PATH = OUTPUT_PATH / Path(r"D:\GitHub Data\Differential-Drive-Mobile-Robot\GUI\02\build\assets\frame0")
 
 
 def relative_to_assets(path: str) -> Path:
     return ASSETS_PATH / Path(path)
 
-arduino = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
+# arduino = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
+arduino = serial.Serial('COM6', 115200, timeout=1)
 
 def blink_rectangle():
     current_color = canvas.itemcget(led, 'fill')
@@ -32,7 +34,7 @@ def blink_rectangle():
 def send_character(char):
     if arduino.is_open and char:
         try:
-            arduino.write(char.encode())  # Kirim karakter
+            arduino.write(char.encode('utf-8'))  # Kirim karakter
             print(f"Karakter '{char}' telah dikirim")
             canvas.itemconfig(led, fill="#59FF00")  # Ubah warna jadi hijau
             window.after(100, lambda: canvas.itemconfig(led, fill="#FFFFFF"))  # Ubah jadi merah setelah 200ms
@@ -40,7 +42,7 @@ def send_character(char):
             print(f"Kesalahan: {e}")
             blink_rectangle()  # Mulai berkedip jika error
 #
-def update_entry(new_text):
+def update_entry6(new_text):
     # Ambil teks yang sudah ada di entry_6
     current_text = entry_6.get("1.0", "end-1c").strip()
     
@@ -51,40 +53,40 @@ def update_entry(new_text):
 #
 def button_2_click():
     send_character('T') # teleoperation
-    update_entry("Teleoperation")
+    update_entry6("Teleoperation")
 #
 def button_3_click():
     send_character('A') # autonomous
-    update_entry("Autonomous")
+    update_entry6("Autonomous")
 #
 def button_4_click():
     send_character('W') # wall following
-    update_entry("Wall Following")
+    update_entry6("Wall Following")
 #
 def button_5_click():
     send_character('P') # point to point
-    update_entry("Point to Point")
+    update_entry6("Point to Point")
 #    
 def on_button_7_press(event):
-    send_character('I')
+    send_character('I' + entry_1.get())
 # 
 def on_button_7_release(event):
     send_character('X')
 #
 def on_button_8_press(event):
-    send_character('L')
+    send_character('L' + entry_9.get())
 #
 def on_button_8_release(event):
     send_character('X')
 #
 def on_button_9_press(event):
-    send_character('J')
+    send_character('J' + entry_9.get())
 #
 def on_button_9_release(event):
     send_character('X')
 #
 def on_button_10_press(event):
-    send_character('K')
+    send_character('K' + entry_1.get())
 #
 def on_button_10_release(event):
     send_character('X')
@@ -589,9 +591,9 @@ entry_11 = Text(
     font=("Arial ", 15)
 )
 entry_11.place(
-    x=80,
+    x=70,
     y=470.0,
-    width=50,
+    width=70,
     height=25.0
 )
 
@@ -610,9 +612,9 @@ entry_12 = Text(
     font=("Arial ", 15)
 )
 entry_12.place(
-    x=210,
+    x=200,
     y=470.0,
-    width=50,
+    width=70,
     height=25.0
 )
 
@@ -631,9 +633,9 @@ entry_13 = Text(
     font=("Arial ", 15)
 )
 entry_13.place(
-    x=340,
+    x=330,
     y=470.0,
-    width=50,
+    width=70,
     height=25.0
 )
 
@@ -922,109 +924,103 @@ led = canvas.create_rectangle(
     outline="")
 window.resizable(False, False)
 
-def setup():
-    send_character('T') # teleoperation
-    update_entry("Teleoperation")
-# 
+def loop():
+    if arduino.in_waiting > 0:
+        data = arduino.readline().decode('utf-8').strip()
+        pattern = r"U(\d+)U(\d+)U(\d+)E(\d+)E(\d+)Y([-]?\d+\.\d+)P([-]?\d+\.\d+)R([-]?\d+\.\d+)X([-]?\d+\.\d+)Y([-]?\d+\.\d+)W([-]?\d+\.\d+)"
+        # Menggunakan re.match untuk mencocokkan pattern
+        match = re.match(pattern, data)
+
+        if match:
+            # Parsing hasilnya
+            us_kiri         = int(match.group(1))
+            us_depan        = int(match.group(2))
+            us_kanan        = int(match.group(3))
+            encoder_kiri    = int(match.group(4))
+            encoder_kanan   = int(match.group(5))
+            yaw             = float(match.group(6))
+            pitch           = float(match.group(7))
+            roll            = float(match.group(8))
+            pos_x           = float(match.group(9))
+            pos_y           = float(match.group(10))
+            pos_w           = float(match.group(11))
+        
+            entry_13.delete("1.0", "end")
+            entry_13.insert("end", roll)
+            entry_11.delete("1.0", "end")
+            entry_11.insert("end", yaw)
+            entry_12.delete("1.0", "end")
+            entry_12.insert("end", pitch)
+
+            entry_14.delete("1.0", "end")
+            entry_14.insert("end", us_depan)
+            entry_15.delete("1.0", "end")
+            entry_15.insert("end", us_kanan)
+            entry_10.delete("1.0", "end")
+            entry_10.insert("end", us_kiri)
+
+            entry_16.delete("1.0", "end")
+            entry_16.insert("end", encoder_kiri)
+            entry_17.delete("1.0", "end")
+            entry_17.insert("end", encoder_kanan)
+
+            entry_3.delete("1.0", "end")
+            entry_3.insert("end", pos_w)
+            entry_4.delete("1.0", "end")
+            entry_4.insert("end", pos_x)
+            entry_7.delete("1.0", "end")
+            entry_7.insert("end", pos_y)
+
+    window.after(10, loop)
 
 # def loop():
 #     if arduino.in_waiting > 0:
-#         data = arduino.readline().decode('utf-8').strip()
-#         pattern = r"U(\d+)U(\d+)U(\d+)E(\d+)E(\d+)Y([-]?\d+\.\d+)P([-]?\d+\.\d+)R([-]?\d+\.\d+)X([-]?\d+\.\d+)Y([-]?\d+\.\d+)W([-]?\d+\.\d+)"
-#         # Menggunakan re.match untuk mencocokkan pattern
-#         match = re.match(pattern, data)
+#         raw_data = arduino.readline().decode('utf-8').strip()
+#         print(raw_data)
+#         data_json = json.loads(raw_data)
 
-#         if match:
-#             # Parsing hasilnya
-#             us_kiri         = int(match.group(1))
-#             us_depan        = int(match.group(2))
-#             us_kanan        = int(match.group(3))
-#             encoder_kiri    = int(match.group(4))
-#             encoder_kanan   = int(match.group(5))
-#             yaw             = float(match.group(6))
-#             pitch           = float(match.group(7))
-#             roll            = float(match.group(8))
-#             pos_x           = float(match.group(9))
-#             pos_y           = float(match.group(10))
-#             pos_w           = float(match.group(11))
-        
-#             entry_13.delete("1.0", "end")
-#             entry_13.insert("end", roll)
-#             entry_11.delete("1.0", "end")
-#             entry_11.insert("end", yaw)
-#             entry_12.delete("1.0", "end")
-#             entry_12.insert("end", pitch)
+#         us_kiri         = data_json['us_kiri']
+#         us_depan        = data_json['us_depan']
+#         us_kanan        = data_json['us_kanan']
+#         yaw             = data_json['yaw']
+#         pitch           = data_json['pitch']
+#         roll            = data_json['roll']
+#         encoder_kiri    = data_json['encoder_l']
+#         encoder_kanan   = data_json['encoder_r']
+#         pos_x           = data_json['pos_x']
+#         pos_y           = data_json['pos_y']
+#         pos_w           = data_json['pos_w']
 
-#             entry_14.delete("1.0", "end")
-#             entry_14.insert("end", us_depan)
-#             entry_15.delete("1.0", "end")
-#             entry_15.insert("end", us_kanan)
-#             entry_10.delete("1.0", "end")
-#             entry_10.insert("end", us_kiri)
+#         entry_13.delete("1.0", "end")
+#         entry_13.insert("end", roll)
+#         entry_11.delete("1.0", "end")
+#         entry_11.insert("end", yaw)
+#         entry_12.delete("1.0", "end")
+#         entry_12.insert("end", pitch)
 
-#             entry_16.delete("1.0", "end")
-#             entry_16.insert("end", encoder_kiri)
-#             entry_17.delete("1.0", "end")
-#             entry_17.insert("end", encoder_kanan)
+#         entry_14.delete("1.0", "end")
+#         entry_14.insert("end", us_depan)
+#         entry_15.delete("1.0", "end")
+#         entry_15.insert("end", us_kanan)
+#         entry_10.delete("1.0", "end")
+#         entry_10.insert("end", us_kiri)
 
-#             entry_3.delete("1.0", "end")
-#             entry_3.insert("end", pos_w)
-#             entry_4.delete("1.0", "end")
-#             entry_4.insert("end", pos_x)
-#             entry_7.delete("1.0", "end")
-#             entry_7.insert("end", pos_y)
+#         entry_16.delete("1.0", "end")
+#         entry_16.insert("end", encoder_kiri)
+#         entry_17.delete("1.0", "end")
+#         entry_17.insert("end", encoder_kanan)
 
-#     window.after(100, loop)
-
-def loop():
-    if arduino.in_waiting > 0:
-        raw_data = arduino.readline().decode('utf-8').strip()
-        # print(data)
-        data_json = json.loads(raw_data)
-
-        us_kiri         = data_json['us_kiri']
-        us_depan        = data_json['us_depan']
-        us_kanan        = data_json['us_kanan']
-        yaw             = data_json['yaw']
-        pitch           = data_json['pitch']
-        roll            = data_json['roll']
-        encoder_kiri    = data_json['encoder_l']
-        encoder_kanan   = data_json['encoder_r']
-        pos_x           = data_json['pos_x']
-        pos_y           = data_json['pos_y']
-        pos_w           = data_json['pos_w']
-
-        entry_13.delete("1.0", "end")
-        entry_13.insert("end", roll)
-        entry_11.delete("1.0", "end")
-        entry_11.insert("end", yaw)
-        entry_12.delete("1.0", "end")
-        entry_12.insert("end", pitch)
-
-        entry_14.delete("1.0", "end")
-        entry_14.insert("end", us_depan)
-        entry_15.delete("1.0", "end")
-        entry_15.insert("end", us_kanan)
-        entry_10.delete("1.0", "end")
-        entry_10.insert("end", us_kiri)
-
-        entry_16.delete("1.0", "end")
-        entry_16.insert("end", encoder_kiri)
-        entry_17.delete("1.0", "end")
-        entry_17.insert("end", encoder_kanan)
-
-        entry_3.delete("1.0", "end")
-        entry_3.insert("end", pos_w)
-        entry_4.delete("1.0", "end")
-        entry_4.insert("end", pos_x)
-        entry_7.delete("1.0", "end")
-        entry_7.insert("end", pos_y)
+#         entry_3.delete("1.0", "end")
+#         entry_3.insert("end", pos_w)
+#         entry_4.delete("1.0", "end")
+#         entry_4.insert("end", pos_x)
+#         entry_7.delete("1.0", "end")
+#         entry_7.insert("end", pos_y)
     
-    window.after(100, loop)
+#     window.after(100, loop)
 
 
 if __name__ == "__main__":
-    setup()
     loop()
     window.mainloop()
 
