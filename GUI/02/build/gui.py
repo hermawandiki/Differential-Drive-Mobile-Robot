@@ -23,7 +23,7 @@ def relative_to_assets(path: str) -> Path:
     return ASSETS_PATH / Path(path)
 
 # arduino = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
-arduino = serial.Serial('COM6', 115200, timeout=1)
+arduino = serial.Serial('COM23', 115200, timeout=1)
 
 def blink_rectangle():
     current_color = canvas.itemcget(led, 'fill')
@@ -927,7 +927,7 @@ window.resizable(False, False)
 def loop():
     if arduino.in_waiting > 0:
         data = arduino.readline().decode('utf-8').strip()
-        pattern = r"U(\d+)U(\d+)U(\d+)E(\d+)E(\d+)Y([-]?\d+\.\d+)P([-]?\d+\.\d+)R([-]?\d+\.\d+)X([-]?\d+\.\d+)Y([-]?\d+\.\d+)W([-]?\d+\.\d+)"
+        pattern = r"#U(\d+)U(\d+)U(\d+)E([-]?\d+)E([-]?\d+)Y([-]?\d+\.\d+)P([-]?\d+\.\d+)R([-]?\d+\.\d+)X([-]?\d+\.\d+)Y([-]?\d+\.\d+)W([-]?\d+\.\d+)"
         # Menggunakan re.match untuk mencocokkan pattern
         match = re.match(pattern, data)
 

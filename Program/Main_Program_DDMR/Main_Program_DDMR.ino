@@ -20,10 +20,10 @@
 #define ENCB_R 5
 
 // SENSOR
-#define TRIG_LEFT   44
-#define ECHO_LEFT   42
-#define TRIG_RIGHT  36
-#define ECHO_RIGHT  34
+#define TRIG_LEFT   36
+#define ECHO_LEFT   34
+#define TRIG_RIGHT  44
+#define ECHO_RIGHT  42
 #define TRIG_FRONT  40
 #define ECHO_FRONT  38
 #define INTERRUPT_PIN   23
@@ -262,28 +262,29 @@ void TaskMainProgram(void *pvParameters) {
         case 'P' : state = POINT_TO_POINT;  isRun = false;  break;
         case 'M' : isRun = true;                            break;
         case 'N' : isRun = false;                           break;
-        case 'I' : _vy = Serial.parseInt();                 break;
-        case 'K' : _vy = -(Serial.parseInt());              break;
-        case 'J' : _omega = Serial.parseInt();              break;
-        case 'L' : _omega = -(Serial.parseInt());           break;
-        default  : robotVelocity(0, 0);                     break;
+        case 'I' : _vy = Serial.parseFloat();               break;
+        case 'K' : _vy = -(Serial.parseFloat());            break;
+        case 'J' : _omega = -(Serial.parseFloat());         break;
+        case 'L' : _omega = Serial.parseFloat();            break;
+        case 'X' : _vy = 0; _omega = 0;                     break;
+        default  :                                          break;
       }
-    }
-
-    switch (state) {
-      case TELEOPERATION :
-        robotVelocity(_vy, _omega);
-        break;
-      case AUTONOMOUS :
-        runAutonomous();
-        break;
-      case WALL_FOLLOWING :
-        wallFollowing();
-        break;
-      case POINT_TO_POINT :
-        break;
-      default :
-        break;
+      
+      switch (state) {
+        case TELEOPERATION :
+          robotVelocity(_vy, _omega);
+          break;
+        case AUTONOMOUS :
+          runAutonomous();
+          break;
+        case WALL_FOLLOWING :
+          wallFollowing();
+          break;
+        case POINT_TO_POINT :
+          break;
+        default :
+          break;
+      }
     }
 
 //    Serial.print(state);
@@ -325,7 +326,7 @@ void TaskKirimSerial(void *pvParameters){
 //    serializeJson(doc, jsonBuffer);
 //    Serial.println(jsonBuffer);
 
-    sprintf(buffer, "U%dU%dU%dE%dE%d", us_kiri, us_depan, us_kanan, encoderL, encoderR);
+    sprintf(buffer, "#U%dU%dU%dE%dE%d", us_kiri, us_depan, us_kanan, encoderL, encoderR);
     Serial.print(buffer);
     String dataF = 'Y' + String(yaw,2) + 'P'+ String(pitch,2) + 'R' + String(roll,2) + 'X' + String(pos_x,2) + 'Y' + String(pos_y,2) + 'W' + String(pos_w,2);
     Serial.println(dataF);
@@ -334,9 +335,9 @@ void TaskKirimSerial(void *pvParameters){
   }
 }
 //
-void robotVelocity(float _vy, float _omega){
-  vy    = _vy;
-  omega = _omega;
+void robotVelocity(float y, float w){
+  vy    = y;
+  omega = w;
 }
 //
 void runAutonomous(){
@@ -348,17 +349,19 @@ void runAutonomous(){
   else {
     waktu = millis();
     if (waktu - _waktu >= interval) {
-      _waktu = waktu;
-  
-      switch (iterasi) {
-        case 0 :
-          interval = 1000;
-          iterasi = 1;
-          break;
-        case 1 :
-          interval = 1000;
-          iterasi = 0;
-          break;
+    _waktu = waktu;
+    
+    switch (iterasi) {
+      case 0 :
+        robotVelocity(100, 0);
+        interval = 2000;
+        iterasi = 1;
+        break;
+      case 1 :
+        robotVelocity(0, 90);
+        interval = 1000;
+        iterasi = 0;
+        break;
       }
     }
   }
