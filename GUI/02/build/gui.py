@@ -23,7 +23,7 @@ def relative_to_assets(path: str) -> Path:
     return ASSETS_PATH / Path(path)
 
 # arduino = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
-arduino = serial.Serial('COM23', 115200, timeout=1)
+arduino = serial.Serial('COM6', 115200, timeout=1)
 
 def blink_rectangle():
     current_color = canvas.itemcget(led, 'fill')

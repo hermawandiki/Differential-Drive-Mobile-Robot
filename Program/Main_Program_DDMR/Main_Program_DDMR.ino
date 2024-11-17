@@ -34,16 +34,17 @@
 #define WHEELBASE 0.18 // in meters
 
 // STATE MODE
-#define TELEOPERATION   1
-#define AUTONOMOUS      2
-#define WALL_FOLLOWING  3
-#define POINT_TO_POINT  4
+#define TEST_MOTOR      1
+#define WALL_FOLLOWING  2
+#define AUTONOMOUS      3
+#define TELEOPERATION   4
+#define KANAN           1
+#define KIRI            2
 
 // ULTRASONIC
 Ultrasonic US_Left (TRIG_LEFT,  ECHO_LEFT);
 Ultrasonic US_Right(TRIG_RIGHT, ECHO_RIGHT);
 Ultrasonic US_Front(TRIG_FRONT, ECHO_FRONT);
-JsonDocument doc;
 
 // IMU
 MPU6050 mpu;
@@ -59,7 +60,9 @@ float euler[3];
 float ypr[3];
 int Yaw, Pitch, Roll;
 volatile bool mpuInterrupt = false;
-void dmpDataReady() { mpuInterrupt = true; }
+void dmpDataReady() {
+  mpuInterrupt = true;
+}
 
 char buffer[50];
 uint8_t state = 0;
@@ -86,15 +89,14 @@ float KiR = 0;
 float KdR = 0;
 
 int us_kiri, us_depan, us_kanan;
-int enc_kiri, enc_kanan;
-float yaw, pitch, roll;
-float pos_x, pos_y, pos_w;
+int pwm1, pwm2;
+float _vy, _omega;
 
 float dt = 0.08;  // 80ms
 int dtDelay = dt * 1000;
 float vy, omega;
-long waktu, _waktu = 0;
-int iterasi, interval;
+
+uint8_t balance;
 
 void TaskMotorControl (void *pvParameters);
 void TaskMainProgram  (void *pvParameters);
@@ -117,19 +119,19 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(ENCA_L), HandleENC_L, RISING);
   attachInterrupt(digitalPinToInterrupt(ENCA_R), HandleENC_R, RISING);
-  
+
   initMPU();
-  
+
   xTaskCreate(TaskMotorControl, "Kinematika & PID", 1024, NULL, 1, NULL);
   xTaskCreate(TaskMainProgram, "Main Program", 1024, NULL, 1, NULL);
   xTaskCreate(TaskKirimSerial, "Kirim Data GUI", 1024, NULL, 1, NULL);
 }
 
-void loop(){
+void loop() {
   // null
 }
 //
-void initMPU(){
+void initMPU() {
   mpu.initialize();
   devStatus = mpu.dmpInitialize();
   mpu.setXGyroOffset(220);
@@ -137,7 +139,7 @@ void initMPU(){
   mpu.setZGyroOffset(-85);
   mpu.setZAccelOffset(1788);
 
-  if(devStatus == 0){
+  if (devStatus == 0) {
     mpu.CalibrateAccel(6);
     mpu.CalibrateGyro(6);
     mpu.PrintActiveOffsets();
@@ -146,7 +148,7 @@ void initMPU(){
     mpuIntStatus = mpu.getIntStatus();
     dmpReady = true;
     packetSize = mpu.dmpGetFIFOPacketSize();
-  } else{}
+  } else {}
 }
 //
 void HandleENC_L() {
@@ -231,12 +233,41 @@ int PID_R(float setpoint) {
   return out;
 }
 //
+void kirimDataJson() {
+  StaticJsonDocument<256> doc;
+
+  doc["usl"]    = us_kiri;
+  doc["usf"]    = us_depan;
+  doc["usr"]    = us_kanan;
+  doc["yaw"]    = Yaw;
+  doc["pitch"]  = Pitch;
+  doc["roll"]   = Roll;
+  doc["encl"]   = encoderL;
+  doc["encr"]   = encoderR;
+  doc["kpl"]    = KpL;
+  doc["kil"]    = KiL;
+  doc["kdl"]    = KdL;
+  doc["kpr"]    = KpR;
+  doc["kir"]    = KiR;
+  doc["kdr"]    = KdR;
+
+  char jsonBuffer[256];
+  serializeJson(doc, jsonBuffer);
+  Serial.println(jsonBuffer);
+
+  //    sprintf(buffer, "#U%dU%dU%dE%dE%d", us_kiri, us_depan, us_kanan, encoderL, encoderR);
+  //    Serial.print(buffer);
+  //    String dataF = 'Y' + String(yaw,2) + 'P'+ String(pitch,2) + 'R' + String(roll,2) + 'X' + String(pos_x,2) + 'Y' + String(pos_y,2) + 'W' + String(pos_w,2);
+  //    Serial.println(dataF);
+}
+//
 void TaskMotorControl(void *pvParameters) {
   for (;;) {
     noInterrupts();
     posReadL = encoderL;
     posReadR = encoderR;
-    kinematic(vy, omega);
+    if (state != TEST_MOTOR) kinematic(vy, omega);
+    else driveMotor(pwm1, pwm2);
     interrupts();
     deltaPosL = posReadL - prevPosReadL;
     deltaPosR = posReadR - prevPosReadR;
@@ -244,22 +275,22 @@ void TaskMotorControl(void *pvParameters) {
     prevPosReadR = posReadR;
     speedActualL = deltaPosL / dt / 320;
     speedActualR = deltaPosR / dt / 320;
-    kinematic(vy, omega);
+    if (state != TEST_MOTOR) kinematic(vy, omega);
+    else driveMotor(pwm1, pwm2);
     vTaskDelay(dtDelay / portTICK_PERIOD_MS);
   }
 }
 //
 void TaskMainProgram(void *pvParameters) {
-  float _vy, _omega;
+  uint8_t _pwm1, _pwm2;
   for (;;) {
     if (Serial.available() > 0) {
       char data = Serial.read();
-
-      switch(data){
+      switch (data) {
         case 'T' : state = TELEOPERATION;   isRun = false;  break;
+        case 'P' : state = TEST_MOTOR;      isRun = false;  break;
         case 'A' : state = AUTONOMOUS;      isRun = false;  break;
         case 'W' : state = WALL_FOLLOWING;  isRun = false;  break;
-        case 'P' : state = POINT_TO_POINT;  isRun = false;  break;
         case 'M' : isRun = true;                            break;
         case 'N' : isRun = false;                           break;
         case 'I' : _vy = Serial.parseFloat();               break;
@@ -267,107 +298,79 @@ void TaskMainProgram(void *pvParameters) {
         case 'J' : _omega = -(Serial.parseFloat());         break;
         case 'L' : _omega = Serial.parseFloat();            break;
         case 'X' : _vy = 0; _omega = 0;                     break;
+        case 'Z' : _pwm1 = Serial.parseInt();               break;
+        case 'C' : _pwm2 = Serial.parseInt();               break;
         default  :                                          break;
       }
-      
-      switch (state) {
-        case TELEOPERATION :
-          robotVelocity(_vy, _omega);
-          break;
-        case AUTONOMOUS :
-          runAutonomous();
-          break;
-        case WALL_FOLLOWING :
-          wallFollowing();
-          break;
-        case POINT_TO_POINT :
-          break;
-        default :
-          break;
-      }
+    }
+    switch (state) {
+      case TEST_MOTOR :
+        if (isRun) {
+          pwm1 = _pwm1;
+          pwm2 = -(_pwm2);
+        }
+        else {
+          pwm1 = 0;
+          pwm2 = 0;
+        }
+        break;
+      case TELEOPERATION :
+        robotVelocity(_vy, _omega);
+        break;
+      case AUTONOMOUS :
+        runAutonomous();
+        break;
+      case WALL_FOLLOWING :
+        wallFollowing();
+        break;
+      default :
+        break;
     }
 
-//    Serial.print(state);
-//    Serial.print(" ");
-//    Serial.println(isRun);
+    //    Serial.print(state);
+    //    Serial.print(" ");
+    //    Serial.println(isRun);
+
     vTaskDelay(dtDelay / portTICK_PERIOD_MS);
   }
 }
 //
-void TaskKirimSerial(void *pvParameters){
-  for(;;){
-    if(!dmpReady) return;
+void TaskKirimSerial(void *pvParameters) {
+  for (;;) {
+    if (!dmpReady) return;
     if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
       mpu.dmpGetQuaternion(&q, fifoBuffer);
       mpu.dmpGetGravity(&gravity, &q);
       mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
 
-      pitch = (ypr[2] * 180 / M_PI + 180) + 0.5;
-      roll  = (ypr[1] * 180 / M_PI + 180) + 0.5;
-      yaw   = (ypr[0] * 180 / M_PI + 180) + 0.5;
+      Pitch = (ypr[2] * 180 / M_PI + 180) + 0.5;
+      Roll  = (ypr[1] * 180 / M_PI + 180) + 0.5;
+      Yaw   = (ypr[0] * 180 / M_PI + 180) + 0.5;
     }
-    int us_depan = US_Front.read();
-    int us_kiri  = US_Left.read();
-    int us_kanan = US_Right.read();
-    
-//    doc["us_kiri"]   = us_kiri;
-//    doc["us_depan"]  = us_depan;
-//    doc["us_kanan"]  = us_kanan;
-//    doc["yaw"]       = yaw;
-//    doc["pitch"]     = pitch;
-//    doc["roll"]      = roll;
-//    doc["encoder_l"] = encoderL;
-//    doc["encoder_r"] = encoderR;
-//    doc["pos_x"]     = pos_x;
-//    doc["pos_y"]     = pos_y;
-//    doc["pos_w"]     = pos_w;
-//    
-//    char jsonBuffer[256];
-//    serializeJson(doc, jsonBuffer);
-//    Serial.println(jsonBuffer);
+    us_depan = US_Front.read();
+    us_kiri  = US_Left.read();
+    us_kanan = US_Right.read();
 
-    sprintf(buffer, "#U%dU%dU%dE%dE%d", us_kiri, us_depan, us_kanan, encoderL, encoderR);
-    Serial.print(buffer);
-    String dataF = 'Y' + String(yaw,2) + 'P'+ String(pitch,2) + 'R' + String(roll,2) + 'X' + String(pos_x,2) + 'Y' + String(pos_y,2) + 'W' + String(pos_w,2);
-    Serial.println(dataF);
-    
+    kirimDataJson();
+
     vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }
 //
-void robotVelocity(float y, float w){
+void robotVelocity(float y, float w) {
   vy    = y;
   omega = w;
 }
 //
-void runAutonomous(){
-  if (!isRun) {
-    robotVelocity(0, 0);
-    iterasi = 0;
-    _waktu = 0;
-  }
+void runAutonomous() {
+  if (!isRun) robotVelocity(0, 0);
   else {
-    waktu = millis();
-    if (waktu - _waktu >= interval) {
-    _waktu = waktu;
-    
-    switch (iterasi) {
-      case 0 :
-        robotVelocity(100, 0);
-        interval = 2000;
-        iterasi = 1;
-        break;
-      case 1 :
-        robotVelocity(0, 90);
-        interval = 1000;
-        iterasi = 0;
-        break;
-      }
-    }
+    if (us_depan > 20) robotVelocity(300, 0);
+    else robotVelocity(0, 0);
   }
 }
 //
-void wallFollowing(){
-  
+void wallFollowing() {
+
 }
 //
