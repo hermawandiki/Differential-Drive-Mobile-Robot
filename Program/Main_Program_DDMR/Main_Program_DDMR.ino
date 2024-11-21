@@ -1,3 +1,4 @@
+#include <EEPROM.h>
 #include <Arduino_FreeRTOS.h>
 #include <ArduinoJson.h>
 #include <util/atomic.h>
@@ -119,8 +120,9 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(ENCA_L), HandleENC_L, RISING);
   attachInterrupt(digitalPinToInterrupt(ENCA_R), HandleENC_R, RISING);
-
+  
   initMPU();
+  readEEPROM();
 
   xTaskCreate(TaskMotorControl, "Kinematika & PID", 1024, NULL, 1, NULL);
   xTaskCreate(TaskMainProgram, "Main Program", 1024, NULL, 1, NULL);
@@ -261,6 +263,28 @@ void kirimDataJson() {
   //    Serial.println(dataF);
 }
 //
+void writeEEPROM() {
+  int addr = 0;
+
+  EEPROM.put(addr, KpL); addr += sizeof(KpL);
+  EEPROM.put(addr, KpR); addr += sizeof(KpR);
+  EEPROM.put(addr, KiL); addr += sizeof(KiL);
+  EEPROM.put(addr, KiR); addr += sizeof(KiR);
+  EEPROM.put(addr, KdL); addr += sizeof(KdL);
+  EEPROM.put(addr, KdR); addr += sizeof(KdR);
+}
+//
+void readEEPROM() {
+  int addr = 0;
+
+  EEPROM.get(addr, KpL); addr += sizeof(KpL);
+  EEPROM.get(addr, KpR); addr += sizeof(KpR);
+  EEPROM.get(addr, KiL); addr += sizeof(KiL);
+  EEPROM.get(addr, KiR); addr += sizeof(KiR);
+  EEPROM.get(addr, KdL); addr += sizeof(KdL);
+  EEPROM.get(addr, KdR); addr += sizeof(KdR);
+}
+//
 void TaskMotorControl(void *pvParameters) {
   for (;;) {
     noInterrupts();
@@ -282,7 +306,8 @@ void TaskMotorControl(void *pvParameters) {
 }
 //
 void TaskMainProgram(void *pvParameters) {
-  uint8_t _pwm1, _pwm2;
+  int _pwm1, _pwm2;
+  float _vy, _omega;
   for (;;) {
     if (Serial.available() > 0) {
       char data = Serial.read();
@@ -298,16 +323,31 @@ void TaskMainProgram(void *pvParameters) {
         case 'J' : _omega = -(Serial.parseFloat());         break;
         case 'L' : _omega = Serial.parseFloat();            break;
         case 'X' : _vy = 0; _omega = 0;                     break;
-        case 'Z' : _pwm1 = Serial.parseInt();               break;
-        case 'C' : _pwm2 = Serial.parseInt();               break;
-        default  :                                          break;
+        case 'Q' : {
+            _pwm1 = Serial.parseInt();
+            _pwm2 = Serial.parseInt();
+          }
+          break;
+        case '#' : {
+            KpL = Serial.parseFloat();
+            KpR = Serial.parseFloat();
+            KiL = Serial.parseFloat();
+            KiR = Serial.parseFloat();
+            KdL = Serial.parseFloat();
+            KdR = Serial.parseFloat();
+
+            writeEEPROM();
+          }
+          break;
+        default: break;
       }
     }
+
     switch (state) {
       case TEST_MOTOR :
         if (isRun) {
           pwm1 = _pwm1;
-          pwm2 = -(_pwm2);
+          pwm2 = _pwm2;
         }
         else {
           pwm1 = 0;
