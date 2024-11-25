@@ -383,9 +383,9 @@ void TaskKirimSerial(void *pvParameters) {
       mpu.dmpGetGravity(&gravity, &q);
       mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
 
-      Pitch = (ypr[2] * 180 / M_PI + 180) + 0.5;
-      Roll  = (ypr[1] * 180 / M_PI + 180) + 0.5;
-      Yaw   = (ypr[0] * 180 / M_PI + 180) + 0.5;
+      Pitch = ypr[2] * 180 / M_PI;
+      Roll  = ypr[1] * 180 / M_PI;
+      Yaw   = ypr[0] * 180 / M_PI;
     }
     us_depan = US_Front.read();
     us_kiri  = US_Left.read();
@@ -406,7 +406,11 @@ void runAutonomous() {
   if (!isRun) robotVelocity(0, 0);
   else {
     if (us_depan > 20) robotVelocity(300, 0);
-    else robotVelocity(0, 0);
+    else {
+      robotVelocity(0, 90);
+      delay(1000);
+      robotVelocity(0, 0);
+    }
   }
 }
 //

@@ -50,7 +50,7 @@ class SensorData:
 
 sensor_data = SensorData()
 
-SERVER_URL = 'http://192.168.43.245:5000' 
+SERVER_URL = 'http://192.168.137.161:5000' 
 sio = Client()
 
 @sio.event
@@ -654,7 +654,7 @@ encr_text = canvas.create_text(
 )
 
 roll_text = canvas.create_text(
-    333,
+    350,
     470.0,
     anchor="nw",
     text="roll",
@@ -663,7 +663,7 @@ roll_text = canvas.create_text(
 )
 
 pitch_text = canvas.create_text(
-    200,
+    220,
     470.0,
     anchor="nw",
     text="pitch",
@@ -672,7 +672,7 @@ pitch_text = canvas.create_text(
 )
 
 yaw_text = canvas.create_text(
-    70,
+    90,
     470.0,
     anchor="nw",
     text="yaw",
