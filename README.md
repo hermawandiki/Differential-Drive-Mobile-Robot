@@ -7,6 +7,7 @@ This project was developed in the mechatronics system programming course at Mech
 Course lecturer : Adytia Darmawan, S.ST., M.T.
 
 Mechatronics Engineering Study Program
+
 Electronic Engineering Polytechnic Institute of Surabaya (EEPIS)
 
 ***
@@ -18,5 +19,6 @@ Proyek ini dikembangkan dalam mata kuliah pemrograman sistem mekatronika di Tekn
 Dosen Mata Kuliah : Adytia Darmawan, S.ST., M.T.
 
 Program Studi Teknik Mekatronika
+
 Politeknik Elektronika Negeri Surabaya (PENS)
 ***
