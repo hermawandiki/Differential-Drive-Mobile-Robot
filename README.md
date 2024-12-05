@@ -1,15 +1,23 @@
 # Differential-Drive-Mobile-Robot
 
-Catatan : Repository ini belum fix.
-****
-Diki Hermawan - 4122600037
+This DDMR is equipped with a GUI that is able to display sensor data from the robot, control the movement of the robot, and set PID parameters for the speed of each motor.
 
-Mata Kuliah : Pemrograman Sistem Mekatronik
+This project was developed in the mechatronics system programming course at Mechatronics Engineering - EEPIS
 
-Dosen Pengampu : Adytia Darmawan, S. S.T., M.T.
-****
-Semester 5 - Teknik Mekatronika
+Course lecturer : Adytia Darmawan, S.ST., M.T.
 
-Politeknik Elektronika Negeri Surabaya
+Mechatronics Engineering Study Program
+Electronic Engineering Polytechnic Institute of Surabaya (EEPIS)
 
-2024
+#
+
+DDMR ini dilengkapi dengan GUI yang mampu menampilkan data sensor dari robot, mengendalikan pergerakan robot, dan mengatur parameter PID untuk kecepatan setiap motor.
+
+Proyek ini dikembangkan dalam mata kuliah pemrograman sistem mekatronika di Teknik Mekatronika - PENS
+
+Dosen Mata Kuliah : Adytia Darmawan, S.ST., M.T.
+
+Program Studi Teknik Mekatronika
+Politeknik Elektronika Negeri Surabaya (PENS)
+
+#
